@@ -7,31 +7,10 @@
 #define LEXAGON_NUM_LEDS    96
 #define LIXAGON_NUM_LEDS    41
 #define BRIGHTNESS  255
-
-// Lightweight Pear class
-template<class M, class N>
-struct Pear {
-    M val_1;
-    N val_2;
-    
-    Pear(M v1, N v2) 
-      :val_1(v1), val_2(v2) {}
-    
-    //use default values for copy construction and assignment
-    
-    M first() { return val_1; }
-    const M first() const {return val_1; }
-    
-    N second() { return val_2; }
-    const N second() const {return val_2; }
-};
-
  
 CRGB leds[LEXAGON_NUM_LEDS];
-// arx::map<Pear<int, int>, int> coord2idx;
-// arx::map<int, Pear<int, int>> idx2coord;
-arx::map<int, int> coord2idx;
-arx::map<int, int> idx2coord;
+arx::map<arx::pair<int, int>, int> coord2idx;
+arx::map<int, arx::pair<int, int>> idx2coord;
 
 void setup() {
   Serial.begin(115200);
@@ -56,16 +35,22 @@ void setup() {
       } else {
         idx = idx_lastrow + x - width[y] - 1;
       }
-      coord2idx[idx] = idx;
-      idx2coord[idx] = idx;
-      // coord2idx[Pear<int, int>(x, y)] = idx ;
-      // idx2coord[idx] = Pear<int, int>(x, y);
+      
+      coord2idx[arx::make_pair(x, y)] = idx;
+      idx2coord[idx] = arx::make_pair(x, y);
 
-      Serial.print(x);
+      Serial.print(idx2coord[idx].first);
       Serial.print(", ");
-      Serial.print(y);
+      Serial.print(idx2coord[idx].second);
       Serial.print(", ");
-      Serial.println(idx);
+
+      Serial.println(coord2idx[arx::make_pair(x,y)]);
+
+      // Serial.print(x);
+      // Serial.print(", ");
+      // Serial.print(y);
+      // Serial.print(", ");
+      // Serial.println(idx);
 
       leds[idx] = CRGB::White;
       FastLED.show();
