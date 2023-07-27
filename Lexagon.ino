@@ -8,7 +8,7 @@
 #define LIXAGON_NUM_LEDS    41
 #define BRIGHTNESS  255
  
-CRGB leds[LEXAGON_NUM_LEDS];
+CRGB leds[LEXAGON_NUM_LEDS + LIXAGON_NUM_LEDS * 6];
 arx::map<arx::pair<int, int>, int> coord2idx;
 arx::map<int, arx::pair<int, int>> idx2coord;
 
@@ -21,6 +21,9 @@ void setup() {
     .setCorrection(TypicalLEDStrip)
     .setDither(BRIGHTNESS < 255);
 
+  /**
+   ** Initialize the coordinate mapping for LEXAGON **
+  */
   // Map the coordinates to the index of the LEDs
   int idx_lastrow = LEXAGON_NUM_LEDS;
   // Bottom to top
@@ -29,6 +32,7 @@ void setup() {
     int width[8] = {4, 5, 6, 7, 7, 6, 5, 4};
     for (int x = -width[y]; x <= width[y]; x++) {
 
+      // Compensate for switchback wiring
       int idx;
       if (y%2 == 0) {
         idx = idx_lastrow - x - width[y] - 1;
@@ -36,30 +40,23 @@ void setup() {
         idx = idx_lastrow + x - width[y] - 1;
       }
       
+      // Associate the coordinates with the index both ways
       coord2idx[arx::make_pair(x, y)] = idx;
       idx2coord[idx] = arx::make_pair(x, y);
 
-      Serial.print(idx2coord[idx].first);
-      Serial.print(", ");
-      Serial.print(idx2coord[idx].second);
-      Serial.print(", ");
-
-      Serial.println(coord2idx[arx::make_pair(x,y)]);
-
-      // Serial.print(x);
-      // Serial.print(", ");
-      // Serial.print(y);
-      // Serial.print(", ");
-      // Serial.println(idx);
-
+      // Pretty animation (and make sure it's working)
       leds[idx] = CRGB::White;
       FastLED.show();
-      FastLED.delay(25);
+      FastLED.delay(10);
     }
 
+    // Update row index
     idx_lastrow -= width[y] * 2 + 1;
   }
 
+  /**
+   ** Initialize the coordinate mapping for LIXAGON **
+  */
 
   // set master brightness control
   FastLED.setBrightness(BRIGHTNESS);
@@ -67,6 +64,11 @@ void setup() {
  
 void loop()
 {
+  for (int i = 1; i < LEXAGON_NUM_LEDS + LIXAGON_NUM_LEDS * 6; i++) {
+    leds[-i] = CRGB::Black;
+    leds[i] = CRGB::White;
+    FastLED.show();
+  }
   pride();
   FastLED.show();  
 }
