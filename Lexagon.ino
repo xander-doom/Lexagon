@@ -7,12 +7,34 @@
 #define LEXAGON_NUM_LEDS    96
 #define LIXAGON_NUM_LEDS    41
 #define BRIGHTNESS  255
+
+// Lightweight Pear class
+template<class M, class N>
+struct Pear {
+    M val_1;
+    N val_2;
+    
+    Pear(M v1, N v2) 
+      :val_1(v1), val_2(v2) {}
+    
+    //use default values for copy construction and assignment
+    
+    M first() { return val_1; }
+    const M first() const {return val_1; }
+    
+    N second() { return val_2; }
+    const N second() const {return val_2; }
+};
+
  
 CRGB leds[LEXAGON_NUM_LEDS];
-arx::map<int[2], int> coord2idx;
-arx::map<int, int[2]> idx2coord;
- 
+// arx::map<Pear<int, int>, int> coord2idx;
+// arx::map<int, Pear<int, int>> idx2coord;
+arx::map<int, int> coord2idx;
+arx::map<int, int> idx2coord;
+
 void setup() {
+  Serial.begin(115200);
   delay(500); // 3 second delay for recovery
   
   // tell FastLED about the LED strip configuration
@@ -26,19 +48,31 @@ void setup() {
   for (int y = 0; y < 8; y++) {
     // Left to right
     int width[8] = {4, 5, 6, 7, 7, 6, 5, 4};
-    for (int x = -width[y]; x < width[y]; x++) {
+    for (int x = -width[y]; x <= width[y]; x++) {
 
       int idx;
       if (y%2 == 0) {
-        idx = idx_lastrow - x - width[y];
+        idx = idx_lastrow - x - width[y] - 1;
       } else {
-        idx = idx_lastrow + x + width[y];
+        idx = idx_lastrow + x - width[y] - 1;
       }
-      coord2idx[arx::pair(x, y)] = idx ;
-      idx2coord[idx] = arx::pair(y, x);
+      coord2idx[idx] = idx;
+      idx2coord[idx] = idx;
+      // coord2idx[Pear<int, int>(x, y)] = idx ;
+      // idx2coord[idx] = Pear<int, int>(x, y);
 
-      Serial.println(x,y,idx);
+      Serial.print(x);
+      Serial.print(", ");
+      Serial.print(y);
+      Serial.print(", ");
+      Serial.println(idx);
+
+      leds[idx] = CRGB::White;
+      FastLED.show();
+      FastLED.delay(25);
     }
+
+    idx_lastrow -= width[y] * 2 + 1;
   }
 
 
