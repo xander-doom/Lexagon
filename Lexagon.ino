@@ -1,53 +1,86 @@
-#include "FastLED.h"
-#include "ArxContainer.h"
- 
-#define DATA_PIN    5
-#define LED_TYPE    WS2812B
-#define COLOR_ORDER GRB
-#define LEXAGON_NUM_LEDS    96
-#define LIXAGON_NUM_LEDS    41
-#define BRIGHTNESS  255
- 
-CRGB leds[LEXAGON_NUM_LEDS + LIXAGON_NUM_LEDS * 6];
-arx::map<arx::pair<int, int>, int> coord2idx;
-arx::map<int, arx::pair<int, int>> idx2coord;
+#include <Adafruit_NeoPixel.h>
+#include <Arduino.h>
+#include <map>
+#include <utility>
+#include "Rotary.h"
+#include "Potentiometer.h"
 
-void setup() {
+#define LED_PIN 5
+#define LED_TYPE WS2812B
+#define COLOR_ORDER GRB
+#define LEXAGON_NUM_LEDS 96
+#define LIXAGON_NUM_LEDS 41
+#define TOTAL_NUM_LEDS LEXAGON_NUM_LEDS + LIXAGON_NUM_LEDS * 6
+
+// Configure LEDs
+Adafruit_NeoPixel pixels(TOTAL_NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
+
+// Coordinate to Index and Index to Coordinate maps
+// Coordinate system is custom
+// Lexagon uses a cartesian coordinate system with 0,0 in the center middle
+// Lixagon uses two circular coordinates, one for which Lixagon and one for which LED (out of 6 and 24 respectively)
+std::map<std::pair<int, int>, int> LexC2I;
+std::map<int, std::pair<int, int>> LexI2C;
+std::map<std::pair<int, int>, int> LixC2I;
+std::map<int, std::pair<int, int>> LixI2C;
+// Projection of normal LED index onto Lexagon and Lixagon (skip hidden LEDs in Lixagon)
+// Used for mapping existing LED patterns to Lexagon
+int LEDProjection[TOTAL_NUM_LEDS];
+
+// Potentiometers
+Potentiometer pot1;
+Potentiometer pot2;
+
+// Rotary encoders
+Rotary rot1;
+Rotary rot2;
+
+void setup()
+{
+  // Initialize LEDs
+  pixels.begin();
+  pixels.clear();
+
+  // Potentiometer connections
+  pot1.init(0);
+  pot2.init(1);
+
+  // Rotary encoder connections
+  rot1.init(2, 11, 10);
+  rot2.init(3, 9, 4);
+
   Serial.begin(115200);
-  delay(500); // 3 second delay for recovery
-  
-  // tell FastLED about the LED strip configuration
-  FastLED.addLeds<LED_TYPE,DATA_PIN,COLOR_ORDER>(leds, LEXAGON_NUM_LEDS)
-    .setCorrection(TypicalLEDStrip)
-    .setDither(BRIGHTNESS < 255);
 
   /**
    ** Initialize the coordinate mapping for LEXAGON **
-  */
+   */
   // Map the coordinates to the index of the LEDs
   int idx_lastrow = LEXAGON_NUM_LEDS;
   // Bottom to top
-  for (int y = 0; y < 8; y++) {
+  for (int y = 0; y < 8; y++)
+  {
     // Left to right
     int width[8] = {4, 5, 6, 7, 7, 6, 5, 4};
-    for (int x = -width[y]; x <= width[y]; x++) {
+    for (int x = -width[y]; x <= width[y]; x++)
+    {
 
       // Compensate for switchback wiring
       int idx;
-      if (y%2 == 0) {
+      if (y % 2 == 0)
+      {
         idx = idx_lastrow - x - width[y] - 1;
-      } else {
+      }
+      else
+      {
         idx = idx_lastrow + x - width[y] - 1;
       }
-      
-      // Associate the coordinates with the index both ways
-      coord2idx[arx::make_pair(x, y)] = idx;
-      idx2coord[idx] = arx::make_pair(x, y);
 
-      // Pretty animation (and make sure it's working)
-      leds[idx] = CRGB::White;
-      FastLED.show();
-      FastLED.delay(10);
+      // Associate the coordinates with the index both ways
+      LexC2I[std::make_pair(x, y)] = idx;
+      LexI2C[idx] = std::make_pair(x, y);
+      LEDProjection[idx] = idx;
+
+      // Todo add power on animation?
     }
 
     // Update row index
@@ -56,62 +89,95 @@ void setup() {
 
   /**
    ** Initialize the coordinate mapping for LIXAGON **
-  */
+   */
 
-  // set master brightness control
-  FastLED.setBrightness(BRIGHTNESS);
+  // Clockwise around the hexes, starting at the bottom
+  int idx = LEXAGON_NUM_LEDS;
+  for (int i = 0; i < 6; i++)
+  {
+    int r = 0;
+    // Counterclockwise around sides, starting where the wire comes in (first side twice)
+    for (int j = 0; j < 7; j++)
+    {
+      // Along the LEDs on the side
+      for (int k = 0; k < 7; k++)
+      {
+        if (j == 0 && k == 0) // Start in the middle of the first side
+          k = 4;
+
+        if (k % 2 == 0)
+        {
+          // Initalization code goes here
+          // idx = global index of LED
+          // i = lixagon
+          // j = side of lixagon
+          // k = LED on that side
+          // r = index of LED in that lixagon
+          LixC2I[std::make_pair(i, r)] = idx;
+          LixI2C[idx] = std::make_pair(i, r);
+
+          LEDProjection[i * 24 + r] = idx;
+          r++;
+        }
+
+        idx++;
+
+        if (j == 6 && k == 2)
+          break;
+      }
+    }
+  }
 }
- 
+
+int lightMode = 0;
+int lastEncoderChange = 9999;
+const int menuTimeout = 5000;
+const int fadeTime = 300;
+
 void loop()
 {
-  for (int i = 1; i < LEXAGON_NUM_LEDS + LIXAGON_NUM_LEDS * 6; i++) {
-    leds[-i] = CRGB::Black;
-    leds[i] = CRGB::White;
-    FastLED.show();
+
+// Check for potentiometer changes
+pot1.update();
+pot2.update();
+
+// Check for encoder changes
+rot1.update();
+rot2.update();
+
+  // if (lastEncoderChange < millis() - menuTimeout)
+  if (false)
+  {
   }
-  pride();
-  FastLED.show();  
-}
- 
-// This function draws rainbows with an ever-changing,
-// widely-varying set of parameters.
-void pride() 
-{
-  static uint16_t sPseudotime = 0;
-  static uint16_t sLastMillis = 0;
-  static uint16_t sHue16 = 0;
- 
-  uint8_t sat8 = beatsin88( 87, 220, 250);
-  uint8_t brightdepth = beatsin88( 341, 96, 224);
-  uint16_t brightnessthetainc16 = beatsin88( 203, (25 * 256), (40 * 256));
-  uint8_t msmultiplier = beatsin88(147, 23, 60);
- 
-  uint16_t hue16 = sHue16;//gHue * 256;
-  uint16_t hueinc16 = beatsin88(113, 1, 3000);
-  
-  uint16_t ms = millis();
-  uint16_t deltams = ms - sLastMillis ;
-  sLastMillis  = ms;
-  sPseudotime += deltams * msmultiplier;
-  sHue16 += deltams * beatsin88( 400, 5,9);
-  uint16_t brightnesstheta16 = sPseudotime;
-  
-  for( uint16_t i = 0 ; i < LEXAGON_NUM_LEDS; i++) {
-    hue16 += hueinc16;
-    uint8_t hue8 = hue16 / 256;
- 
-    brightnesstheta16  += brightnessthetainc16;
-    uint16_t b16 = sin16( brightnesstheta16  ) + 32768;
- 
-    uint16_t bri16 = (uint32_t)((uint32_t)b16 * (uint32_t)b16) / 65536;
-    uint8_t bri8 = (uint32_t)(((uint32_t)bri16) * brightdepth) / 65536;
-    bri8 += (255 - brightdepth);
-    
-    CRGB newcolor = CHSV( hue8, sat8, bri8);
-    
-    uint16_t pixelnumber = i;
-    pixelnumber = (LEXAGON_NUM_LEDS-1) - pixelnumber;
-    
-    nblend( leds[pixelnumber], newcolor, 64);
+  else
+  {
+    // switch (rot1.counter())
+    switch (0)
+    {
+    case 0:
+      pixels.setPixelColor(0, pot1.value(), (pot1.value()+pot2.value())/2, pot2.value());
+      // pride();
+      break;
+    case 1:
+      // rainbow();
+      break;
+    case 2:
+      // pulse();
+      break;
+    case 3:
+      // colorWipe();
+      break;
+    case 4:
+      // theaterChase(); // no idea what this is
+      break;
+    case 5:
+      // rain();
+      break;
+    case 6:
+      // lixagonChase();
+      break;
+    }
   }
+
+  pixels.show();
 }
