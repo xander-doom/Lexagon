@@ -9,10 +9,10 @@ private:
   int _PinCLK; // CLOCK signal
   int _PinDT;  // DATA signal
 
-  int OldCLK, OldDT;
-  int NewCLK, NewDT;
+  volatile int OldCLK, OldDT;
+  volatile int NewCLK, NewDT;
 
-  int counter; // Store current counter value
+  volatile int counter; // Store current counter value
 
   // Variables to debounce Rotary Encoder
   long TimeOfLastDebounce;
