@@ -3,10 +3,11 @@
 
 #include <cstdint>
 #include <vector>
-#include "FastLEDMath.h"
+#include "FastLED.h"
 
 using namespace std;
 
-vector<uint32_t> pride(vector<uint32_t>& pixels, int numLeds, int deltams);
+void pride(CRGB leds[], int numLeds);
+void pacifica(CRGB leds[], int numLeds);
 
 #endif

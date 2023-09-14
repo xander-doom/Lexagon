@@ -1,15 +1,15 @@
-#include "FastLEDMath.h"
-#include <Adafruit_NeoPixel.h>
 #include <Arduino.h>
+#include <WS2812Serial.h>
+#define USE_WS2812SERIAL
+#include <FastLED.h>
 #include <map>
 #include <utility>
+#include <vector>
 #include "Rotary.h"
 #include "Potentiometer.h"
 #include "Patterns.h"
-#include <cstdint>
-#include <vector>
 
-#define LED_PIN 5
+#define LED_PIN 1
 #define LED_TYPE WS2812B
 #define COLOR_ORDER GRB
 #define LEXAGON_NUM_LEDS 96
@@ -19,8 +19,8 @@
 #define TOTAL_NUM_LEDS_VISIBLE LEXAGON_NUM_LEDS + LIXAGON_NUM_LEDS_VISIBLE * 6
 
 // Configure LEDs
-Adafruit_NeoPixel leds(TOTAL_NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
-std::vector<uint32_t> pixels(TOTAL_NUM_LEDS, 0);
+CRGB leds[TOTAL_NUM_LEDS];
+CRGB pixels[TOTAL_NUM_LEDS_VISIBLE];
 
 // Coordinate to Index and Index to Coordinate maps
 // Coordinate system is custom
@@ -49,28 +49,29 @@ int deltams = 0;
 
 void setup()
 {
+  // Initialize serial
+  Serial.begin(115200);
+
   // Initialize LEDs
-  leds.begin();
-  leds.clear();
+  FastLED.addLeds<WS2812SERIAL, LED_PIN, GRB>(leds, TOTAL_NUM_LEDS);
 
   // Potentiometer connections
-  pot1.init(0);
-  pot2.init(1);
+  pot1.init(analogInputToDigitalPin(6));
+  pot2.init(analogInputToDigitalPin(7));
 
   // Rotary encoder connections
-  rot1.init(2, 11, 10);
-  rot2.init(3, 9, 4);
+  rot1.init(analogInputToDigitalPin(3), analogInputToDigitalPin(4), analogInputToDigitalPin(5));
+  rot2.init(analogInputToDigitalPin(0), analogInputToDigitalPin(1), analogInputToDigitalPin(2));
 
   attachInterrupt(
-      digitalPinToInterrupt(11), []()
+      digitalPinToInterrupt(4), []()
       { rot1.update(); },
       CHANGE);
   attachInterrupt(
-      digitalPinToInterrupt(9), []()
+      digitalPinToInterrupt(1), []()
       { rot2.update(); },
       CHANGE);
 
-  Serial.begin(115200);
   /**
    ** Initialize the coordinate mapping for LEXAGON **
    */
@@ -80,7 +81,7 @@ void setup()
   for (int y = 0; y < 8; y++)
   {
     // Left to right
-    int width[8] = {4, 5, 6, 7, 7, 6, 5, 4}; //Clearer to to hardcode this vs a loop
+    int width[8] = {4, 5, 6, 7, 7, 6, 5, 4}; // Clearer to to hardcode this vs a loop
     for (int x = -width[y]; x <= width[y]; x++)
     {
 
@@ -101,15 +102,13 @@ void setup()
       projectionMask[idx] = idx;
 
       // Todo add power on animation?
-      leds.setPixelColor(idx, (uint32_t)0xffffff);
-      leds.show();
+      leds[idx] = CRGB::White;
+      FastLED.show();
     }
 
     // Update row index
     idx_lastrow -= width[y] * 2 + 1;
   }
-
-  
 
   /**
    ** Initialize the coordinate mapping for LIXAGON **
@@ -145,6 +144,10 @@ void setup()
           r++;
 
           idx++; // Pixel mapping. move outside of the if statment for led mapping.
+
+          // Todo add power on animation?
+          leds[ledidx] = CRGB::White;
+          FastLED.show();
         }
         ledidx++; // led mapping for projection mask
 
@@ -172,8 +175,11 @@ void loop()
 
   // Update time for patterns
   // Also allows for on-the-fly speed updates
-  deltams = lastms - millis();
+  deltams = millis() - lastms;
   lastms = millis();
+
+  // Todo remove this (probably making things mega slow)
+  Serial.println(deltams);
 
   if (rot1.value() != rot1LastPos)
   {
@@ -194,48 +200,59 @@ void loop()
     Serial.println(rot1.value() % 100);
   }
   else
-  {
-    // switch (rot1.counter())
-    switch (1)
+  { 
+    //Macro expands to non-blocking timed loop //todo assess if this is a bad idea lol
+    //EVERY_N_MILLISECONDS_I(refreshRate, 20)
+    if(true)
     {
-    case 0:
-      pixels = pride(pixels, 96 + 24, deltams);
-      break;
-    case 1:
-      // clear pixels
-      std::fill(pixels.begin(), pixels.end(), 0);
-      pixels[LexC2I[std::make_pair(rot1.value(), rot2.value())]] = 0xffffff;
-      Serial.print(rot1.value());
-      Serial.print(", ");
-      Serial.print(rot2.value());
-      Serial.print(", ");
-      Serial.println(LexC2I[std::make_pair(rot1.value(), rot2.value())]);
+      // Update refresh rate based on pot1
+      //refreshRate.setPeriod(pot1.value() / 8 + 15);
 
-      // rainbow();
-      break;
-    case 2:
-      // pulse();
-      break;
-    case 3:
-      // colorWipe();
-      break;
-    case 4:
-      // theaterChase(); // no idea what this is
-      break;
-    case 5:
-      // rain();
-      break;
-    case 6:
-      // lixagonChase();
-      break;
+      // switch (rot1.counter())
+      switch (1)
+      {
+      case 0:
+        // pixels = pride(pixels, 96 + 24, deltams);
+        break;
+      case 1:
+        // clear pixels
+        FastLED.clear();
+        pixels[LexC2I[std::make_pair(rot1.value(), rot2.value())]] = 0xffffff;
+        Serial.print(rot1.value());
+        Serial.print(", ");
+        Serial.print(rot2.value());
+        Serial.print(", ");
+        Serial.println(LexC2I[std::make_pair(rot1.value(), rot2.value())]);
+
+        // rainbow();
+        break;
+      case 2:
+        pacifica(pixels, TOTAL_NUM_LEDS_VISIBLE);
+        // pulse();
+        break;
+      case 3:
+        // colorWipe();
+        break;
+      case 4:
+        // theaterChase(); // no idea what this is
+        break;
+      case 5:
+        // rain();
+        break;
+      case 6:
+        // lixagonChase();
+        break;
+      }
     }
   }
 
   // Update LEDs
   for (int i = 0; i < TOTAL_NUM_LEDS_VISIBLE; i++)
   {
-    leds.setPixelColor(projectionMask.at(i), pixels[i]);
+    leds[projectionMask.at(i)] = pixels[i];
   }
 
-  leds.show();
+  // Apply updates
+  FastLED.show();
+  delay(100);
 }

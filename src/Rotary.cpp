@@ -29,7 +29,7 @@ void Rotary::init(int PinSW, int PinCLK, int PinDT)
 void Rotary::update()
 {
     // If enough time has passed check the rotary encoder
-    if ((millis() - TimeOfLastDebounce) > DelayofDebounce)
+    if ((millis() - TimeOfLastDebounce) > (long unsigned int)DelayofDebounce)
     if (true)
     {
         //TimeOfLastDebounce = millis(); // Set variable to current millis() timer
