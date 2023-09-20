@@ -8,6 +8,7 @@
 #include "Rotary.h"
 #include "Potentiometer.h"
 #include "Patterns.h"
+#include "Polar.h"
 
 #define LED_PIN 1
 #define LED_TYPE WS2812B
@@ -19,8 +20,8 @@
 #define TOTAL_NUM_LEDS_VISIBLE LEXAGON_NUM_LEDS + LIXAGON_NUM_LEDS_VISIBLE * 6
 
 // Configure LEDs
-CRGB leds[TOTAL_NUM_LEDS];
-CRGB pixels[TOTAL_NUM_LEDS_VISIBLE];
+CRGB leds[TOTAL_NUM_LEDS]; // Used only for display
+CRGB pixels[TOTAL_NUM_LEDS_VISIBLE]; // Used for calculations
 
 // Coordinate to Index and Index to Coordinate maps
 // Coordinate system is custom
@@ -64,11 +65,19 @@ void setup()
   rot2.init(analogInputToDigitalPin(0), analogInputToDigitalPin(1), analogInputToDigitalPin(2));
 
   attachInterrupt(
-      digitalPinToInterrupt(4), []()
+      digitalPinToInterrupt(analogInputToDigitalPin(4)), []()
       { rot1.update(); },
       CHANGE);
   attachInterrupt(
-      digitalPinToInterrupt(1), []()
+      digitalPinToInterrupt(analogInputToDigitalPin(5)), []()
+      { rot1.update(); },
+      CHANGE);
+  attachInterrupt(
+      digitalPinToInterrupt(analogInputToDigitalPin(1)), []()
+      { rot2.update(); },
+      CHANGE);
+  attachInterrupt(
+      digitalPinToInterrupt(analogInputToDigitalPin(2)), []()
       { rot2.update(); },
       CHANGE);
 
@@ -102,8 +111,8 @@ void setup()
       projectionMask[idx] = idx;
 
       // Todo add power on animation?
-      leds[idx] = CRGB::White;
-      FastLED.show();
+      // leds[idx] = CRGB::White;
+      // FastLED.show();
     }
 
     // Update row index
@@ -146,8 +155,8 @@ void setup()
           idx++; // Pixel mapping. move outside of the if statment for led mapping.
 
           // Todo add power on animation?
-          leds[ledidx] = CRGB::White;
-          FastLED.show();
+          // leds[ledidx] = CRGB::White;
+          // FastLED.show();
         }
         ledidx++; // led mapping for projection mask
 
@@ -156,6 +165,15 @@ void setup()
       }
     }
   }
+
+  //Temporary setup 
+  for (int i = 0; i < TOTAL_NUM_LEDS_VISIBLE; i++)
+  {
+    pixels[i] = 0;
+  }
+  FastLED.clear();
+  leds[3] = CRGB::Red;
+  FastLED.show();
 }
 
 int lightMode = 0;
@@ -209,14 +227,17 @@ void loop()
       //refreshRate.setPeriod(pot1.value() / 8 + 15);
 
       // switch (rot1.counter())
-      switch (1)
+      switch (5)
       {
       case 0:
-        // pixels = pride(pixels, 96 + 24, deltams);
+        pride(pixels, TOTAL_NUM_LEDS_VISIBLE);
         break;
       case 1:
         // clear pixels
-        FastLED.clear();
+        for (int i = 0; i < TOTAL_NUM_LEDS_VISIBLE; i++)
+        {
+          pixels[i] = 0;
+        }
         pixels[LexC2I[std::make_pair(rot1.value(), rot2.value())]] = 0xffffff;
         Serial.print(rot1.value());
         Serial.print(", ");
@@ -224,35 +245,54 @@ void loop()
         Serial.print(", ");
         Serial.println(LexC2I[std::make_pair(rot1.value(), rot2.value())]);
 
-        // rainbow();
         break;
       case 2:
         pacifica(pixels, TOTAL_NUM_LEDS_VISIBLE);
-        // pulse();
         break;
       case 3:
-        // colorWipe();
+        for (int i = 0; i < TOTAL_NUM_LEDS_VISIBLE; i++)
+        {
+          pixels[i] = 0;
+        }
+        //pixels[polar(LexC2I, 1, 4, rot1.value(), thetaMap(rot1.value(), -rot2.value()))] = CRGB::White;
+        for (int i = 0; i < 4; i++){
+          pixels[polar(LexC2I, 1, 4, i, thetaMap(i, -rot2.value()))] = CRGB::White;
+          pixels[polar(LexC2I, 1, 4, i, thetaMap(i, -rot2.value()+21))] = CRGB::White;
+        }
         break;
       case 4:
-        // theaterChase(); // no idea what this is
+        RadialPulse(pixels, TOTAL_NUM_LEDS_VISIBLE, rot1.value()*4, pot2.value(), LexC2I, LixC2I);
         break;
       case 5:
-        // rain();
+        SimpleNoise(pixels, TOTAL_NUM_LEDS_VISIBLE, rot1.value()*4, pot2.value(), LexC2I, LixC2I);
         break;
       case 6:
-        // lixagonChase();
+        for (int i = 0; i < TOTAL_NUM_LEDS_VISIBLE; i++)
+        {
+          pixels[i] = CRGB::White;
+        }
         break;
+        // rainbow();
+        // pulse();
+        // colorWipe();
+        // rain();
+        // theaterChase(); // no idea what this is
+        // lixagonChase();
       }
     }
   }
 
   // Update LEDs
+  // todo: Not sure if this can be applied like this
+  FastLED.setBrightness(pot1.value());
+  
+  // FastLED.setBrightness(255);
   for (int i = 0; i < TOTAL_NUM_LEDS_VISIBLE; i++)
   {
     leds[projectionMask.at(i)] = pixels[i];
   }
 
   // Apply updates
+
   FastLED.show();
-  delay(100);
 }
