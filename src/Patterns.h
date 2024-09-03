@@ -2,16 +2,20 @@
 #define PATTERNS_H
 
 #include <cstdint>
-#include <vector>
 #include "Arduino.h"
+#define FASTLED_INTERNAL
 #include "FastLED.h"
 #include "Polar.h"
+#include "LexMap.h"
 
 using namespace std;
 
-void pride(CRGB leds[], int numLeds);
-void pacifica(CRGB leds[], int numLeds);
-void RadialPulse(CRGB pixels[], int numLeds, int hue, int saturation, std::map<std::pair<int, int>, int> LexC2I, std::map<std::pair<int, int>, int> LixC2I);
-void SimpleNoise(CRGB pixels[], int numLeds, int hue, int saturation, std::map<std::pair<int, int>, int> LexC2I, std::map<std::pair<int, int>, int> LixC2I);
+void RayBeam(CRGB pixels[], int angle, int hue = 0, int satuation = 0, int value = 255);
+
+void Pride(CRGB pixels[]);
+void Pacifica(CRGB pixels[]);
+void RadialPulse(CRGB pixels[], int hue, int saturation);
+void SimpleNoise(CRGB pixels[], int hue, int saturation);
+void Twinkle(CRGB pixels[], int hue, int saturation);
 
 #endif

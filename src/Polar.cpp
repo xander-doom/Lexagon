@@ -1,4 +1,5 @@
 #include "Polar.h"
+#include "LexMap.h"
 #include "Arduino.h"
 
 // Maps the (0-41) range to smaller ranges based on radius (r)
@@ -22,7 +23,7 @@ int thetaMap(int r, int theta)
 
 // Returns the index of the pixel based on a starting point (x, y), a radius (0-3), and an angle (0-5). (0-17), (0-29), (0-41)
 // radius and theta 0 is gaurenteed to retun the same pixel
-int polar(std::map<std::pair<int, int>, int> LexC2I, int x, int y, int r, int theta)
+int polar(int r, int theta, int x = 1, int y = 4)
 {
     r = ((r%4)+4) % 4;
 
@@ -153,5 +154,5 @@ int polar(std::map<std::pair<int, int>, int> LexC2I, int x, int y, int r, int th
         }
     }
     
-    return LexC2I[std::make_pair(x, y)];
+    return LexC2I(x, y);
 }

@@ -1,6 +1,6 @@
 #include "Patterns.h"
 
-void SimpleNoise(CRGB pixels[], int numLeds, int hue, int saturation, std::map<std::pair<int, int>, int> LexC2I, std::map<std::pair<int, int>, int> LixC2I)
+void SimpleNoise(CRGB pixels[], int hue, int saturation)
 {
     const int scale = 100;
     const int speed = 8; //inverted. more is slower
@@ -11,7 +11,7 @@ void SimpleNoise(CRGB pixels[], int numLeds, int hue, int saturation, std::map<s
         for (int x = -width[y]; x <= width[y]; x++)
         {   
             v = inoise8(x*scale, y*scale, millis()/speed);
-            pixels[LexC2I[std::make_pair(x, y)]] = CHSV(hue, saturation, v);
+            pixels[LexC2I(x, y)] = CHSV(hue, saturation, v);
         }
     }
 
@@ -20,7 +20,7 @@ void SimpleNoise(CRGB pixels[], int numLeds, int hue, int saturation, std::map<s
         for (int j = 0; j < 24; j++)
         {   
             v = inoise8(i*24*scale, j*scale/4, millis()/speed);
-            pixels[LixC2I[std::make_pair(i, j)]] = CHSV(hue, saturation, v);
+            pixels[LixC2I(i, j)] = CHSV(hue, saturation, v);
         }
     }
 }

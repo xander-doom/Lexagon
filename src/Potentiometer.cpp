@@ -8,8 +8,8 @@ void Potentiometer::init(int pin)
     // Read the current state of the potentiometer to init the ring buffer
     reading = analogRead(_pin);
 
-    debounceThreshold = 8; // Change required to update the state
-    levels = 256; // Number of levels of the potentiometer
+    debounceThreshold = 12; // Change required to update the state
+    levels = 256;           // Number of levels of the potentiometer
 }
 void Potentiometer::update()
 {
@@ -25,5 +25,11 @@ void Potentiometer::update()
 
 int Potentiometer::value()
 {
-    return level;
+    if (level > 250){
+        return 255;
+    } else if (level < 5){
+        return 0;
+    } else {
+        return level;
+    }
 }

@@ -1,12 +1,11 @@
 #include "Patterns.h"
-#include "FastLED.h"
 
 using namespace std;
 
 // This function draws rainbows with an ever-changing,
 // Widely-varying set of parameters.
 
-void pride(CRGB leds[], int numLeds)
+void Pride(CRGB pixels[])
 {
   static uint16_t sPseudotime = 0;
   static uint16_t sLastMillis = 0;
@@ -18,7 +17,7 @@ void pride(CRGB leds[], int numLeds)
   uint8_t msmultiplier = beatsin88(147, 23, 60);
 
   uint16_t hue16 = sHue16;//gHue * 256;
-  uint16_t hueinc16 = beatsin88(113, 1, 3000);
+  uint16_t hueinc16 = beatsin88(113, 30, 3000); //todo change the lowest upwards (was 1)
   
   uint16_t ms = millis();
   uint16_t deltams = ms - sLastMillis ;
@@ -27,7 +26,7 @@ void pride(CRGB leds[], int numLeds)
   sHue16 += deltams * beatsin88( 400, 5,9);
   uint16_t brightnesstheta16 = sPseudotime;
   
-  for( uint16_t i = 0 ; i < numLeds; i++) {
+  for( uint16_t i = 0 ; i < TOTAL_NUM_LEDS_VISIBLE; i++) {
     hue16 += hueinc16;
     uint8_t hue8 = hue16 / 256;
 
@@ -41,8 +40,8 @@ void pride(CRGB leds[], int numLeds)
     CRGB newcolor = CHSV( hue8, sat8, bri8);
     
     uint16_t pixelnumber = i;
-    pixelnumber = (numLeds-1) - pixelnumber;
+    pixelnumber = (TOTAL_NUM_LEDS_VISIBLE-1) - pixelnumber;
     
-    nblend( leds[pixelnumber], newcolor, 64);
+    nblend( pixels[pixelnumber], newcolor, 64);
     }
 }
